@@ -99,7 +99,7 @@ export const createCli = (): Command => {
   program
     .name("posthog-lookup")
     .description("Look up PostHog persons and their events")
-    .version("1.0.0")
+    .version("1.0.1")
     .option("-e, --email <email>", "Look up person by email")
     .option("--event <eventName>", "Find persons who triggered this event")
     .option("--events <count>", "Number of events to fetch", "50")
