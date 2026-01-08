@@ -1,6 +1,6 @@
 {
   "name": "posthog-context-capture",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "CLI and MCP server to look up PostHog persons and their events",
   "type": "module",
   "main": "./dist/index.js",
