@@ -49,9 +49,13 @@ posthog-lookup --event checkout_failed --limit 10
 posthog-lookup --event subscription_cancelled --from 7d --show-properties
 ```
 
-## MCP Server (for Claude)
+## MCP Server
 
-Add to your Claude config (`~/.claude.json` or Claude Desktop config):
+The MCP server exposes PostHog lookup tools to AI assistants.
+
+### Claude Code
+
+**Global (all projects)** — add to `~/.mcp.json`:
 
 ```json
 {
@@ -69,7 +73,49 @@ Add to your Claude config (`~/.claude.json` or Claude Desktop config):
 }
 ```
 
-### Available MCP Tools
+**Per-project** — add `.mcp.json` to your project root with the same config.
+
+Restart Claude Code after adding. You'll be prompted to approve the server on first use.
+
+### Claude Desktop
+
+Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows):
+
+```json
+{
+  "mcpServers": {
+    "posthog": {
+      "command": "posthog-mcp",
+      "env": {
+        "POSTHOG_PERSONAL_API_KEY": "phx_...",
+        "POSTHOG_PROJECT_ID": "12345",
+        "POSTHOG_REGION": "us"
+      }
+    }
+  }
+}
+```
+
+### Cursor
+
+Add to Cursor settings (`Cursor Settings → MCP`), or create `.cursor/mcp.json` in your project:
+
+```json
+{
+  "mcpServers": {
+    "posthog": {
+      "command": "posthog-mcp",
+      "env": {
+        "POSTHOG_PERSONAL_API_KEY": "phx_...",
+        "POSTHOG_PROJECT_ID": "12345",
+        "POSTHOG_REGION": "us"
+      }
+    }
+  }
+}
+```
+
+### Available Tools
 
 - **`lookup_person_by_email`** - Find a person by email with their recent events
 - **`lookup_persons_by_event`** - Find persons who triggered a specific event
