@@ -10,6 +10,20 @@ interface ExecuteQueryOptions {
   query: string;
 }
 
+/**
+ * Escapes a string value for safe use in HogQL queries.
+ * Handles single quotes, backslashes, null bytes, and other special characters.
+ */
+const escapeHogQLString = ({ value }: { value: string }): string => {
+  return value
+    .replace(/\\/g, "\\\\")      // Escape backslashes first
+    .replace(/'/g, "\\'")         // Escape single quotes
+    .replace(/\0/g, "\\0")        // Escape null bytes
+    .replace(/\n/g, "\\n")        // Escape newlines
+    .replace(/\r/g, "\\r")        // Escape carriage returns
+    .replace(/\t/g, "\\t");       // Escape tabs
+};
+
 const parseRelativeDate = ({ dateString }: { dateString: string }): Date => {
   const now = new Date();
   const match = dateString.match(/^(\d+)([dhwm])$/);
@@ -23,20 +37,19 @@ const parseRelativeDate = ({ dateString }: { dateString: string }): Date => {
 
   switch (unit) {
     case "h":
-      now.setHours(now.getHours() - amount);
-      break;
+      return new Date(now.getTime() - amount * 60 * 60 * 1000);
     case "d":
-      now.setDate(now.getDate() - amount);
-      break;
+      return new Date(now.getTime() - amount * 24 * 60 * 60 * 1000);
     case "w":
-      now.setDate(now.getDate() - amount * 7);
-      break;
-    case "m":
-      now.setMonth(now.getMonth() - amount);
-      break;
+      return new Date(now.getTime() - amount * 7 * 24 * 60 * 60 * 1000);
+    case "m": {
+      const result = new Date(now);
+      result.setMonth(result.getMonth() - amount);
+      return result;
+    }
+    default:
+      return now;
   }
-
-  return now;
 };
 
 const formatDateForHogQL = ({ date }: { date: Date }): string => {
@@ -108,10 +121,11 @@ export class PostHogClient {
   }: {
     email: string;
   }): Promise<Person | null> {
+    const escapedEmail = escapeHogQLString({ value: email });
     const query = `
       SELECT id, properties
       FROM persons
-      WHERE properties.email = '${email.replace(/'/g, "\\'")}'
+      WHERE properties.email = '${escapedEmail}'
       LIMIT 1
     `;
 
@@ -124,8 +138,20 @@ export class PostHogClient {
     }
 
     const [id, propertiesJson] = result.results[0];
-    const properties = JSON.parse(propertiesJson) as Record<string, unknown>;
+    const properties = this.safeParseJson({ json: propertiesJson });
     return { id, distinctIds: [], properties };
+  }
+
+  private safeParseJson({ json }: { json: string }): Record<string, unknown> {
+    try {
+      const parsed = JSON.parse(json) as unknown;
+      if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
+        return parsed as Record<string, unknown>;
+      }
+      return {};
+    } catch {
+      return {};
+    }
   }
 
   async getPersonsByEvent({
@@ -139,13 +165,14 @@ export class PostHogClient {
     from?: string | null;
     to?: string | null;
   }): Promise<Person[]> {
+    const escapedEventName = escapeHogQLString({ value: eventName });
     const timestampClause = buildTimestampClause({ options: { from, to } });
     const effectiveLimit = limit ?? 10;
 
     const query = `
       SELECT DISTINCT person.id, person.properties
       FROM events
-      WHERE event = '${eventName.replace(/'/g, "\\'")}'${timestampClause}
+      WHERE event = '${escapedEventName}'${timestampClause}
       ORDER BY timestamp DESC
       LIMIT ${effectiveLimit}
     `;
@@ -157,7 +184,7 @@ export class PostHogClient {
     return result.results.map(([id, propertiesJson]) => ({
       id,
       distinctIds: [],
-      properties: JSON.parse(propertiesJson) as Record<string, unknown>,
+      properties: this.safeParseJson({ json: propertiesJson }),
     }));
   }
 
@@ -174,17 +201,18 @@ export class PostHogClient {
     from?: string | null;
     to?: string | null;
   }): Promise<PostHogEvent[]> {
+    const escapedPersonId = escapeHogQLString({ value: personId });
     const effectiveFrom = from ?? "30d";
     const timestampClause = buildTimestampClause({ options: { from: effectiveFrom, to } });
     const eventTypeClause = eventType
-      ? ` AND event = '${eventType.replace(/'/g, "\\'")}'`
+      ? ` AND event = '${escapeHogQLString({ value: eventType })}'`
       : "";
     const effectiveLimit = limit ?? 50;
 
     const query = `
       SELECT event, timestamp, properties
       FROM events
-      WHERE person_id = '${personId.replace(/'/g, "\\'")}'${eventTypeClause}${timestampClause}
+      WHERE person_id = '${escapedPersonId}'${eventTypeClause}${timestampClause}
       ORDER BY timestamp DESC
       LIMIT ${effectiveLimit}
     `;
@@ -196,7 +224,7 @@ export class PostHogClient {
     return result.results.map(([event, timestamp, propertiesJson]) => ({
       event,
       timestamp,
-      properties: JSON.parse(propertiesJson) as Record<string, unknown>,
+      properties: this.safeParseJson({ json: propertiesJson }),
     }));
   }
 

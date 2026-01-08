@@ -24,25 +24,6 @@ export interface TimeframeOptions {
   to?: string | null;
 }
 
-export interface LookupByEmailOptions extends TimeframeOptions {
-  email: string;
-  eventsLimit?: number | null;
-  eventType?: string | null;
-  properties?: string[] | null;
-}
-
-export interface LookupByEventOptions extends TimeframeOptions {
-  eventName: string;
-  limit?: number | null;
-  showProperties?: boolean;
-}
-
-export interface GetPersonEventsOptions extends TimeframeOptions {
-  personId: string;
-  limit?: number | null;
-  eventType?: string | null;
-}
-
 export interface PersonWithEvents {
   person: Person;
   events: PostHogEvent[];

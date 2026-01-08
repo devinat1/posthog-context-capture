@@ -63,9 +63,7 @@ const displayEvents = ({ events }: { events: PostHogEvent[] }): void => {
   }
 
   console.log(chalk.bold.blue(`\nEvents (${events.length}):`));
-  events.forEach((event) => {
-    console.log(formatEvent({ event }));
-  });
+  events.map((event) => formatEvent({ event })).forEach((line) => console.log(line));
 };
 
 const displayPersonsList = ({

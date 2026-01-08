@@ -1,7 +1,5 @@
 import { config as loadDotenv } from "dotenv";
 
-loadDotenv();
-
 export type PostHogRegion = "us" | "eu";
 
 export interface PostHogConfig {
@@ -17,10 +15,16 @@ const getApiBaseUrl = ({ region }: { region: PostHogRegion }): string => {
     : "https://us.posthog.com";
 };
 
+const isValidRegion = (region: string): region is PostHogRegion => {
+  return region === "us" || region === "eu";
+};
+
 export const loadConfig = (): PostHogConfig => {
+  loadDotenv();
+
   const personalApiKey = process.env.POSTHOG_PERSONAL_API_KEY;
   const projectId = process.env.POSTHOG_PROJECT_ID;
-  const region = (process.env.POSTHOG_REGION ?? "us") as PostHogRegion;
+  const regionInput = process.env.POSTHOG_REGION ?? "us";
 
   if (!personalApiKey) {
     throw new Error("POSTHOG_PERSONAL_API_KEY environment variable is required.");
@@ -29,6 +33,12 @@ export const loadConfig = (): PostHogConfig => {
   if (!projectId) {
     throw new Error("POSTHOG_PROJECT_ID environment variable is required.");
   }
+
+  if (!isValidRegion(regionInput)) {
+    throw new Error(`POSTHOG_REGION must be "us" or "eu", got: "${regionInput}"`);
+  }
+
+  const region: PostHogRegion = regionInput;
 
   return {
     personalApiKey,
